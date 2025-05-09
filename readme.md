@@ -39,3 +39,9 @@ pip install -r requirements.txt
 
 ### Usage
 
+- 🧠 update /data/base_prompts.txt to update the prompt for character generation, make sure that this prompt stays same during variation generation aswell. The script will generate number of characters using that prompt.
+- 🎭 update /data/config.txt with as many characters you want to generate.
+- run python generate_characters.py to generate characters, the output will be saved iin characters folder.
+```bash
+python generate_characters.py
+```
