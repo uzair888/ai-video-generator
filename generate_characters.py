@@ -1,5 +1,6 @@
 import os
 import torch
+import random
 from diffusers import StableDiffusionPipeline
 
 # Set device
@@ -35,11 +36,18 @@ if not prompt:
 # Output directory
 os.makedirs("characters", exist_ok=True)
 
-# Generate characters using same prompt but different seeds
-for idx in range(num_characters):
-    seed = 1000 + idx
-    generator = torch.manual_seed(seed)
+# Generate characters using same prompt but random seeds
+used_seeds = set()
 
+for idx in range(num_characters):
+    # Ensure unique seed
+    while True:
+        seed = random.randint(0, 999999)
+        if seed not in used_seeds:
+            used_seeds.add(seed)
+            break
+
+    generator = torch.manual_seed(seed)
     image = pipe(prompt, generator=generator).images[0]
     filename = f"characters/character_{idx}_seed_{seed}.png"
     image.save(filename)

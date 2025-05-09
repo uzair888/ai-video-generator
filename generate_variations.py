@@ -43,8 +43,7 @@ for filename in os.listdir("characters"):
         anchored_prompt = base_prompt.replace("woman", f"woman named {identity_tag}")
         full_prompt = f"{anchored_prompt}, {modifier}"
         generator = torch.manual_seed(base_seed)
-
-
+        
         image = pipe(full_prompt, generator=generator).images[0]
         out_path = f"variations/character_{char_id}_variation_{i+1}_seed_{seed}.png"
         image.save(out_path)
