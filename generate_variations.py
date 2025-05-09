@@ -39,9 +39,11 @@ for filename in os.listdir("characters"):
     print(f"🎨 Generating variations for Character {char_id} (seed {base_seed})")
 
     for i, modifier in enumerate(variations):
-        full_prompt = f"{base_prompt}, {modifier}"
-        seed = base_seed + i + 1  # unique seed per variation
-        generator = torch.manual_seed(seed)
+        identity_tag = "zk-person"
+        anchored_prompt = base_prompt.replace("woman", f"woman named {identity_tag}")
+        full_prompt = f"{anchored_prompt}, {modifier}"
+        generator = torch.manual_seed(base_seed)
+
 
         image = pipe(full_prompt, generator=generator).images[0]
         out_path = f"variations/character_{char_id}_variation_{i+1}_seed_{seed}.png"
