@@ -34,12 +34,12 @@ change_settings({
 })
 
 # ✅ Paths
-characters_folder = os.path.join(os.path.dirname(__file__), "characters")
-captions_folder = os.path.join(os.path.dirname(__file__), "caption.txt")
-prompts_file = os.path.join(os.path.dirname(__file__), "prompt.txt")
+characters_folder = os.path.join(os.path.dirname(__file__), "variations")
+captions_folder = os.path.join(os.path.dirname(__file__),"data", "caption.txt")
+prompts_file = os.path.join(os.path.dirname(__file__),"data", "video_prompt.txt")
 music_folder = os.path.join(os.path.dirname(__file__), "music")
-videos_folder = os.path.join(os.path.dirname(__file__), "videos")
-font_path = "D:/Projects/ai-video-generator-backend/app/Roboto-Bold.ttf"
+videos_folder = os.path.join(os.path.dirname(__file__), "output_videos")
+font_path = "D:/Projects/ai-video-generator-backend/app/fonts/Roboto-Bold.ttf"
 
 os.makedirs(videos_folder, exist_ok=True)
 
@@ -68,7 +68,7 @@ def create_video_task(image_url, prompt):
         "model": "gen3a_turbo",
         "promptText": prompt,
         "watermark": False,
-        "duration": 5,
+        "duration": 10,
         "ratio": "16:9"
     }
     response = requests.post(
@@ -179,8 +179,12 @@ def main():
         if not image_url:
             continue
 
-        prompt = get_random_or_single_file(prompts) if prompts else "A person doing something cool"
-        caption = get_random_or_single_file(captions) if captions else "This is a sample caption"
+        if idx < len(captions) and idx < len(prompts):
+            caption = captions[idx]
+            prompt = prompts[idx]
+        else:
+            caption = "Default caption"
+            prompt = "Default prompt"
         music_file = get_random_or_single_file(music_files)
 
         task_id = create_video_task(image_url, prompt)
@@ -190,8 +194,9 @@ def main():
         video_url = poll_for_completion(task_id)
         if not video_url:
             continue
-
-        raw_video_path = os.path.join(videos_folder, f"video_{idx+1}.mp4")
+        temp_videos_folder = os.path.join(os.path.dirname(__file__), "temp_videos")
+        os.makedirs(temp_videos_folder, exist_ok=True)
+        raw_video_path = os.path.join(temp_videos_folder, f"video_{idx+1}.mp4")
         if download_video(video_url, raw_video_path):
             add_caption_audio_music(raw_video_path, caption, music_file, idx)
 
