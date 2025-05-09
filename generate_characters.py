@@ -11,9 +11,25 @@ pipe = StableDiffusionPipeline.from_pretrained(
     torch_dtype=torch.float16 if device != "cpu" else torch.float32
 ).to(device)
 
+# Read config
+config_path = "data/config.txt"
+num_characters = None
+
+with open(config_path, "r") as f:
+    for line in f:
+        if line.strip().startswith("num_characters="):
+            num_characters = int(line.strip().split("=")[1])
+            break
+
+if num_characters is None:
+    raise ValueError("⚠️ 'num_characters' not found in config.txt")
+
 # Read prompts from file
-with open("character-prompts.txt", "r") as f:
+with open("./data/base_prompts.txt", "r") as f:
     prompts = [line.strip() for line in f if line.strip()]
+
+# Cap number of prompts based on config
+prompts = prompts[:num_characters]
 
 # Output directory
 os.makedirs("characters", exist_ok=True)
