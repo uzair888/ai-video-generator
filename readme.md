@@ -47,4 +47,13 @@ pip install -r requirements.txt
 python generate_characters.py
 ```
 
+### Variations generation
+- 🌄 update /data/variations.txt to update the prompt for character generation, follow same structure.
+- it will generate variations in variation folder.
+```bash
+python generate_variations.py
+```
+
+
+
 
