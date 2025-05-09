@@ -8,6 +8,7 @@ device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is
 # Load the model
 pipe = StableDiffusionPipeline.from_pretrained(
     "SG161222/Realistic_Vision_V6.0_B1_noVAE",
+    safety_checker=None,  # Optional
     torch_dtype=torch.float16 if device != "cpu" else torch.float32
 ).to(device)
 
@@ -24,19 +25,19 @@ with open(config_path, "r") as f:
 if num_characters is None:
     raise ValueError("⚠️ 'num_characters' not found in config.txt")
 
-# Read prompts from file
+# Read single prompt from file
 with open("./data/base_prompts.txt", "r") as f:
-    prompts = [line.strip() for line in f if line.strip()]
+    prompt = next((line.strip() for line in f if line.strip()), None)
 
-# Cap number of prompts based on config
-prompts = prompts[:num_characters]
+if not prompt:
+    raise ValueError("⚠️ No prompt found in base_prompts.txt")
 
 # Output directory
 os.makedirs("characters", exist_ok=True)
 
-# Generate one base character per prompt
-for idx, prompt in enumerate(prompts):
-    seed = 1000 + idx  # consistent seed for each character
+# Generate characters using same prompt but different seeds
+for idx in range(num_characters):
+    seed = 1000 + idx
     generator = torch.manual_seed(seed)
 
     image = pipe(prompt, generator=generator).images[0]

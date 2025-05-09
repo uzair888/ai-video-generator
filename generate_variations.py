@@ -9,24 +9,25 @@ device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is
 # Load model
 pipe = StableDiffusionPipeline.from_pretrained(
     "SG161222/Realistic_Vision_V6.0_B1_noVAE",
+    safety_checker=None,  # Optional
     torch_dtype=torch.float16 if device != "cpu" else torch.float32
 ).to(device)
 
-# Load variation modifiers from file
-with open("variations.txt", "r") as f:
+# Load base prompt (assuming one global prompt used for all characters)
+with open("data/base_prompts.txt", "r") as f:
+    base_prompt = next((line.strip() for line in f if line.strip()), None)
+
+if not base_prompt:
+    raise ValueError("⚠️ No base prompt found in base_prompts.txt")
+
+# Load variation modifiers
+with open("data/variations.txt", "r") as f:
     variations = [line.strip() for line in f if line.strip()]
 
-# Map character IDs to prompts
-prompt_map = {
-    0: "A full-upper body photo of a man with dark hair, beard, and blue eyes, cinematic lighting",
-    1: "A full-upper body photo of a woman with blonde hair and green eyes, 4K lighting indoors"
-    # Extend as needed
-}
-
-# Output folder
+# Create output folder
 os.makedirs("variations", exist_ok=True)
 
-# Generate variations for characters in the "characters/" folder
+# Generate variations
 for filename in os.listdir("characters"):
     match = re.match(r"character_(\d+)_seed_(\d+)\.png", filename)
     if not match:
@@ -34,17 +35,12 @@ for filename in os.listdir("characters"):
 
     char_id = int(match.group(1))
     base_seed = int(match.group(2))
-    base_prompt = prompt_map.get(char_id)
 
-    if not base_prompt:
-        print(f"❌ No prompt found for character {char_id}. Skipping.")
-        continue
-
-    print(f"🎨 Generating variations for Character {char_id}...")
+    print(f"🎨 Generating variations for Character {char_id} (seed {base_seed})")
 
     for i, modifier in enumerate(variations):
         full_prompt = f"{base_prompt}, {modifier}"
-        seed = base_seed + i + 1  # variation seed based on base + offset
+        seed = base_seed + i + 1  # unique seed per variation
         generator = torch.manual_seed(seed)
 
         image = pipe(full_prompt, generator=generator).images[0]
