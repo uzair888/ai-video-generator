@@ -20,15 +20,15 @@ Generate personalized AI-driven avatar reels with facial animation, voiceovers, 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/avatar-reel-generator.git
-cd avatar-reel-generator
+git clone https://github.com/uzair888/ai-video-generator.git
+cd ai-video-generator
 ```
 
 ### 2. Setup Virtual Environment
 
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/Scripts/activate  # On Windows: venv\Scripts\activate
 ```
 
 ### 3. Install Dependencies
