@@ -7,7 +7,8 @@ import random
 from gtts import gTTS
 from moviepy.config import change_settings
 from moviepy.editor import (
-    VideoFileClip, TextClip, CompositeVideoClip, AudioFileClip
+    VideoFileClip, TextClip, CompositeVideoClip, AudioFileClip,
+    concatenate_videoclips
 )
 from moviepy.audio.fx.all import audio_loop
 from moviepy.audio.AudioClip import CompositeAudioClip
@@ -34,13 +35,14 @@ change_settings({
 })
 
 # ✅ Paths
-characters_folder = os.path.join(os.path.dirname(__file__), "variations")
-captions_folder = os.path.join(os.path.dirname(__file__),"data", "caption.txt")
-prompts_file = os.path.join(os.path.dirname(__file__),"data", "video_prompt.txt")
-music_folder = os.path.join(os.path.dirname(__file__), "music")
-videos_folder = os.path.join(os.path.dirname(__file__), "output_videos")
+base_dir = os.path.dirname(__file__)
+characters_folder = os.path.join(base_dir, "variations")
+captions_folder = os.path.join(base_dir, "data", "caption.txt")
+prompts_file = os.path.join(base_dir, "data", "video_prompt.txt")
+music_folder = os.path.join(base_dir, "music")
+sample_video_folder = os.path.join(base_dir, "sample_videos")
+videos_folder = os.path.join(base_dir, "output_videos")
 font_path = "D:/Projects/ai-video-generator-backend/app/fonts/Roboto-Bold.ttf"
-
 os.makedirs(videos_folder, exist_ok=True)
 
 def get_random_or_single_file(file_list):
@@ -68,8 +70,8 @@ def create_video_task(image_url, prompt):
         "model": "gen3a_turbo",
         "promptText": prompt,
         "watermark": False,
-        "duration": 10,
-        "ratio": "16:9"
+        "duration": 5,
+        "ratio": "9:16"
     }
     response = requests.post(
         "https://api.dev.runwayml.com/v1/image_to_video",
@@ -114,40 +116,56 @@ def download_video(url, filename):
         print("❌ Failed to download video:", response.status_code)
         return None
 
-def add_caption_audio_music(video_path, caption_text, music_file, index):
+def create_combined_video(raw_video_path, caption_text, music_file, sample_video_folder, index):
     tts_path = f"tts_{index}.mp3"
-
-    # Generate TTS
     tts = gTTS(caption_text)
     tts.save(tts_path)
 
-    clip = VideoFileClip(video_path)
+    ai_clip = VideoFileClip(raw_video_path)
 
-    # Caption overlay
     caption = TextClip(
         caption_text,
         fontsize=40,
         color='white',
         font=font_path,
         method='caption',
-        size=(clip.w * 0.8, None),
+        size=(ai_clip.w * 0.8, None),
         align='center'
-    ).set_duration(clip.duration).set_position('center')
+    ).set_duration(ai_clip.duration).set_position('center')
 
-    # Load audio clips
-    tts_audio = AudioFileClip(tts_path)
+    captioned_ai_clip = CompositeVideoClip([ai_clip, caption])
+
+    sample_files = [
+        os.path.join(sample_video_folder, f)
+        for f in os.listdir(sample_video_folder)
+        if f.lower().endswith(('.mp4', '.mov'))
+    ]
+    if not sample_files:
+        print("❌ No sample video found.")
+        return
+
+    sample_clip = VideoFileClip(get_random_or_single_file(sample_files)).resize(ai_clip.size)
+
+    # ✅ Reverse order: AI video first, sample video after
+    final_clip = concatenate_videoclips([captioned_ai_clip, sample_clip])
+
     bg_music = AudioFileClip(music_file)
-    bg_music = audio_loop(bg_music, duration=clip.duration).volumex(0.2)
+    bg_music = audio_loop(bg_music, duration=final_clip.duration).volumex(0.2)
 
-    # Combine audios
-    final_audio = CompositeAudioClip([tts_audio, bg_music])
-    video_with_caption = CompositeVideoClip([clip, caption]).set_audio(final_audio)
+    tts_audio = AudioFileClip(tts_path).set_start(0)  # starts with AI clip
 
-    # Output video
-    final_output = os.path.join(videos_folder, f"final_video_{index+1}.mp4")
-    video_with_caption.write_videofile(final_output, codec="libx264", audio_codec="aac")
+    final_audio = CompositeAudioClip([bg_music, tts_audio])
+    final_clip = final_clip.set_audio(final_audio)
+
+    output_path = os.path.join(videos_folder, f"final_video_{index+1}.mp4")
+    final_clip.write_videofile(output_path, codec="libx264", audio_codec="aac")
+    print(f"✅ Saved final video: {output_path}")
 
     # Cleanup
+    ai_clip.close()
+    sample_clip.close()
+    final_clip.close()
+    bg_music.close()
     tts_audio.close()
     os.remove(tts_path)
 
@@ -179,12 +197,8 @@ def main():
         if not image_url:
             continue
 
-        if idx < len(captions) and idx < len(prompts):
-            caption = captions[idx]
-            prompt = prompts[idx]
-        else:
-            caption = "Default caption"
-            prompt = "Default prompt"
+        caption = captions[idx] if idx < len(captions) else "Default caption"
+        prompt = prompts[idx] if idx < len(prompts) else "Default prompt"
         music_file = get_random_or_single_file(music_files)
 
         task_id = create_video_task(image_url, prompt)
@@ -194,11 +208,13 @@ def main():
         video_url = poll_for_completion(task_id)
         if not video_url:
             continue
-        temp_videos_folder = os.path.join(os.path.dirname(__file__), "temp_videos")
+
+        temp_videos_folder = os.path.join(base_dir, "temp_videos")
         os.makedirs(temp_videos_folder, exist_ok=True)
         raw_video_path = os.path.join(temp_videos_folder, f"video_{idx+1}.mp4")
+
         if download_video(video_url, raw_video_path):
-            add_caption_audio_music(raw_video_path, caption, music_file, idx)
+            create_combined_video(raw_video_path, caption, music_file, sample_video_folder, idx)
 
 if __name__ == "__main__":
     main()
